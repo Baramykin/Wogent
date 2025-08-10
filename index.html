@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Экспорт контактов WhatsApp</title>
+    <!-- USER_INFO_SCRIPT_PLACEHOLDER -->
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; color: #1c1e21; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; flex-direction: column; }
+        .container { position: relative; background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); text-align: center; max-width: 800px; width: 90%; min-height: 500px; }
+        .header-controls { position: absolute; top: 15px; right: 15px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+        .header-controls a.button { padding: 8px 15px; font-size: 0.9em; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; line-height: normal; }
+        .header-controls a.button:hover { background-color: #0069d9; }
+        h1 { color: #00a884; }
+        h3 { color: #555; margin-top: 20px; margin-bottom: 5px; }
+        #qr-container { margin: 20px 0; min-height: 250px; display: flex; justify-content: center; align-items: center; }
+        #qr-code { border: 5px solid #dcf8c6; border-radius: 8px; }
+        #logs-container { height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; text-align: left; background-color: #f9f9f9; font-family: 'Courier New', Courier, monospace; font-size: 0.9em; white-space: pre-wrap; }
+        #result { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-top: 20px; }
+        #result .result-group { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+        #result a, #result button { display: inline-block; padding: 10px 20px; background-color: #00a884; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 0.9em; }
+        #result a:hover, #result button:hover { background-color: #008a6e; }
+        #read-chats-btn { background-color: #ffc107; color: #212529; }
+        #read-chats-btn:hover { background-color: #e0a800; }
+        #analyze-btn { background-color: #007bff; }
+        button { padding: 12px 25px; font-size: 1em; cursor: pointer; border: none; border-radius: 5px; color: white; transition: background-color: 0.3s; }
+        #start-button { background-color: #128c7e; }
+        #export-button { background-color: #25d366; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .header-controls button { padding: 8px 15px; font-size: 0.9em; background-color: #6c757d; }
+        #open-delete-modal-btn { background-color: #dc3545; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background-color: #fefefe; padding: 20px 30px; border: 1px solid #888; width: 80%; max-width: 400px; border-radius: 8px; position: relative; }
+        .close-btn { color: #aaa; position: absolute; top: 10px; right: 20px; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .modal-content .input-group { margin-bottom: 1rem; text-align: left; }
+        .modal-content label { display: block; margin-bottom: 5px; color: #606770; font-weight: bold; }
+        .modal-content input { width: 100%; padding: 10px; border: 1px solid #dddfe2; border-radius: 6px; box-sizing: border-box; }
+        .modal-content button { width: 100%; padding: 12px; }
+        .modal-message { padding: 10px; margin-bottom: 1rem; border-radius: 6px; text-align: center; font-weight: bold; display: none; }
+        .modal-error { background-color: #fbe3e4; color: #d12f19; border: 1px solid #fbc2c4; }
+        .modal-success { background-color: #eaf6eb; color: #2d6a33; border: 1px solid #b7e1bd; }
+        .warning-text { color: #dc3545; font-weight: bold; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-controls">
+        <a href="/admin" id="admin-button" class="button" target="_blank" style="display: none;">Админ-панель</a>
+        <button id="open-email-modal-btn">Сменить Email</button>
+        <button id="open-password-modal-btn">Сменить пароль</button>
+        <button id="open-delete-modal-btn">Удалить аккаунт</button>
+        <form action="/logout" method="post" class="logout-form" style="position: static;"><button type="submit">Выйти</button></form>
+    </div>
+    <h1>Экспорт контактов WhatsApp</h1>
+    <p id="status-text">Нажмите "Старт", чтобы создать вашу личную сессию.</p>
+    <div id="action-buttons">
+        <button id="start-button">Старт</button>
+        <button id="export-button" style="display: none;">Экспортировать контакты</button>
+        <button id="disconnect-button" style="display: none; background-color: #ffc107; color: #212529; margin-left: 10px;">Отключиться</button>
+        <button id="logout-button" style="display: none; background-color: #dc3545; margin-left: 10px;">Выйти полностью</button>
+    </div>
+    <div id="qr-container"></div>
+    <h3 id="logs-header">Логи</h3>
+    <div id="logs-container"></div>
+    <div id="result"></div>
+</div>
+    
+<div id="change-password-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" data-modal-id="change-password-modal">×</span>
+        <h2>Смена пароля</h2>
+        <div class="modal-message" data-msg-container></div>
+        <form data-form-id="change-password-form">
+            <div class="input-group"><label for="oldPassword">Старый пароль:</label><input type="password" id="oldPassword" name="oldPassword" required autocomplete="current-password"></div>
+            <div class="input-group"><label for="newPassword">Новый пароль:</label><input type="password" id="newPassword" name="newPassword" required autocomplete="new-password"></div>
+            <div class="input-group"><label for="confirmPassword">Подтвердите новый пароль:</label><input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password"></div>
+            <button type="submit">Сохранить</button>
+        </form>
+    </div>
+</div>
+<div id="change-email-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" data-modal-id="change-email-modal">×</span>
+        <h2>Смена Email</h2>
+        <div class="modal-message" data-msg-container></div>
+        <form data-form-id="change-email-form">
+            <div class="input-group"><label for="newEmail">Новый Email:</label><input type="email" id="newEmail" name="newEmail" required autocomplete="email"></div>
+            <div class="input-group"><label for="currentPasswordForEmail">Текущий пароль (для подтверждения):</label><input type="password" id="currentPasswordForEmail" name="currentPassword" required autocomplete="current-password"></div>
+            <button type="submit">Отправить ссылку для подтверждения</button>
+        </form>
+    </div>
+</div>
+<div id="delete-account-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" data-modal-id="delete-account-modal">×</span>
+        <h2>Удаление аккаунта</h2>
+        <div class="modal-message" data-msg-container></div>
+        <p class="warning-text">Это действие необратимо! Все ваши данные, включая сессии и файлы, будут навсегда удалены.</p>
+        <form data-form-id="delete-account-form">
+            <div class="input-group">
+                <label for="passwordForDelete">Введите ваш текущий пароль для подтверждения:</label>
+                <input type="password" id="passwordForDelete" name="password" required autocomplete="current-password">
+            </div>
+            <button type="submit" style="background-color: #dc3545;">Я понимаю, удалить мой аккаунт</button>
+        </form>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<!-- USER_INFO_SCRIPT_PLACEHOLDER -->
+<script>
+    if (window.currentUser && window.currentUser.id === 1) { document.getElementById('admin-button').style.display = 'inline-block'; }
+
+    
+    const socket = io();
+    const statusText = document.getElementById('status-text');
+    const startButton = document.getElementById('start-button');
+    const exportButton = document.getElementById('export-button');
+    const qrContainer = document.getElementById('qr-container');
+    const qrImage = document.createElement('img'); qrImage.id = 'qr-code';
+    const logsHeader = document.getElementById('logs-header');
+    const logsContainer = document.getElementById('logs-container');
+    const resultDiv = document.getElementById('result');
+    const disconnectButton = document.getElementById('disconnect-button');
+    const logoutButton = document.getElementById('logout-button');
+
+    function addLog(message) {
+        const cleanMessage = message.replace(/</g, "<").replace(/>/g, ">");
+        logsContainer.innerHTML += cleanMessage + '\n';
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+
+    function resetUI() {
+        logsHeader.textContent = 'Логи';
+        statusText.textContent = 'Нажмите "Старт", чтобы создать вашу личную сессию.';
+        startButton.style.display = 'inline-block';
+        startButton.disabled = false;
+        exportButton.style.display = 'none';
+        disconnectButton.style.display = 'none';
+        logoutButton.style.display = 'none';
+        qrImage.style.display = 'none';
+        qrImage.src = '';
+        qrContainer.innerHTML = '';
+        resultDiv.innerHTML = '';
+        logsContainer.innerHTML = '';
+    }
+
+    startButton.addEventListener('click', () => { resetUI(); addLog('Запрос на создание сессии...'); socket.emit('start'); startButton.disabled = true; statusText.textContent = 'Запуск сессии...'; });
+    exportButton.addEventListener('click', () => {
+        logsContainer.innerHTML = '';
+        addLog('Запрос на экспорт контактов...');
+        socket.emit('export_contacts');
+        statusText.textContent = 'Идет сбор контактов...';
+        exportButton.disabled = true;
+        resultDiv.innerHTML = '';
+    });
+    disconnectButton.addEventListener('click', () => { resetUI(); addLog('Запрос на мягкое отключение...'); socket.emit('disconnect_session'); });
+    logoutButton.addEventListener('click', () => { resetUI(); addLog('Запрос на полный выход...'); socket.emit('logout_session'); });
+
+    socket.on('log', (message) => { addLog(message); });
+    socket.on('qr', (qrImageUrl) => {
+        statusText.textContent = 'Отсканируйте QR-код для входа.';
+        qrImage.src = qrImageUrl;
+        qrImage.style.display = 'block';
+        qrContainer.innerHTML = '';
+        qrContainer.appendChild(qrImage);
+    });
+    socket.on('ready', () => {
+        statusText.textContent = 'Успешно подключено! Нажмите "Экспортировать контакты".';
+        qrImage.style.display = 'none';
+        qrContainer.innerHTML = '<h2>✅ Успешно подключено!</h2>';
+        startButton.style.display = 'none';
+        exportButton.style.display = 'inline-block';
+        exportButton.disabled = false;
+        disconnectButton.style.display = 'inline-block';
+        logoutButton.style.display = 'inline-block';
+    });
+    
+    socket.on('done', (data) => {
+        statusText.textContent = 'Экспорт контактов завершен.';
+        resultDiv.innerHTML = `
+            <div class="result-group">
+                <a href="/download?file=${encodeURIComponent(data.fileName)}" download>Скачать контакты (${data.count})</a>
+                <button id="read-chats-btn" data-filename="${data.fileName}">Прочитать чаты</button>
+            </div>
+        `;
+        exportButton.disabled = false;
+        document.getElementById('read-chats-btn').addEventListener('click', (e) => {
+            const btn = e.target;
+            const fileName = btn.dataset.filename;
+            logsContainer.innerHTML = '';
+            addLog(`Запрос на чтение чатов из файла ${fileName}...`);
+            socket.emit('read_chats', { fileName });
+            btn.disabled = true;
+            btn.textContent = 'В процессе...';
+        });
+    });
+
+    socket.on('chats_done', (data) => {
+        const readChatsBtn = document.getElementById('read-chats-btn');
+        if (readChatsBtn) {
+            readChatsBtn.disabled = false;
+            readChatsBtn.textContent = 'Прочитать чаты';
+        }
+        
+        const oldChatsResult = document.getElementById('chats-result-container');
+        if (oldChatsResult) oldChatsResult.remove();
+        
+        const chatsResultDiv = document.createElement('div');
+        chatsResultDiv.id = 'chats-result-container';
+        chatsResultDiv.className = 'result-group';
+        chatsResultDiv.innerHTML = `
+            <a href="/download-zip?file=${encodeURIComponent(data.zipFileName)}" download>Скачать архив с чатами</a>
+            <button id="analyze-btn">Запустить анализ</button>
+        `;
+        resultDiv.appendChild(chatsResultDiv);
+        
+        document.getElementById('analyze-btn').addEventListener('click', (e) => {
+            const btn = e.target;
+            // --- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ---
+            logsContainer.innerHTML = '';
+            logsHeader.textContent = 'Логи анализа';
+            addLog('Запрос на запуск анализа чатов...');
+            const oldAnalysisLink = document.getElementById('analysis-download-link');
+            if (oldAnalysisLink) oldAnalysisLink.parentElement.remove();
+            socket.emit('analyze_contacts');
+            btn.disabled = true;
+            btn.textContent = 'Анализ запущен...';
+        });
+    });
+    
+    socket.on('analysis_done', (data) => {
+         const analyzeBtn = document.getElementById('analyze-btn');
+         if (analyzeBtn) {
+             analyzeBtn.disabled = false;
+             analyzeBtn.textContent = 'Запустить анализ';
+         }
+         addLog('Анализ завершен. Результаты в логе выше.');
+         logsHeader.textContent = 'Логи';
+         
+         const oldAnalysisLink = document.getElementById('analysis-download-link');
+         if (oldAnalysisLink) oldAnalysisLink.parentElement.remove();
+
+         if(data && data.zipFileName) {
+            const analysisResultDiv = document.createElement('div');
+            analysisResultDiv.className = 'result-group';
+            analysisResultDiv.innerHTML = `
+                <a id="analysis-download-link" href="/download-analysis-zip?file=${encodeURIComponent(data.zipFileName)}" download>Скачать архив с анализом</a>
+            `;
+            resultDiv.appendChild(analysisResultDiv);
+         }
+    });
+
+    socket.on('unauthorized', (message) => { alert(message); window.location.href = '/login'; });
+    socket.on('disconnect', () => { addLog('❗️ Соединение с сервером потеряно. Попробуйте обновить страницу.'); startButton.disabled = true; exportButton.disabled = true; disconnectButton.disabled = true; logoutButton.disabled = true; statusText.textContent = 'Связь с сервером потеряна.'; });
+
+    function setupModal(modalId, openBtnId) { const modal = document.getElementById(modalId); if (!modal) return; const openBtn = document.getElementById(openBtnId); const closeBtn = modal.querySelector('.close-btn'); const open = () => modal.style.display = 'flex'; const close = () => { modal.style.display = 'none'; const msgContainer = modal.querySelector('[data-msg-container]'); const form = modal.querySelector('form'); if (msgContainer) msgContainer.style.display = 'none'; if (form) form.reset(); }; if(openBtn) openBtn.onclick = open; if(closeBtn) closeBtn.onclick = close; window.addEventListener('click', (event) => { if (event.target == modal) close(); }); }
+    setupModal('change-password-modal', 'open-password-modal-btn');
+    setupModal('change-email-modal', 'open-email-modal-btn');
+    setupModal('delete-account-modal', 'open-delete-modal-btn');
+    function showModalMessage(modalId, text, type) { const modal = document.getElementById(modalId); const container = modal.querySelector('[data-msg-container]'); container.textContent = text; container.className = `modal-message modal-${type}`; container.style.display = 'block'; }
+    document.querySelector('[data-form-id="change-password-form"]').addEventListener('submit', async (e) => { e.preventDefault(); const form = e.target; const oldPassword = form.querySelector('#oldPassword').value; const newPassword = form.querySelector('#newPassword').value; const confirmPassword = form.querySelector('#confirmPassword').value; const modalId = 'change-password-modal'; if (newPassword !== confirmPassword) { return showModalMessage(modalId, 'Новые пароли не совпадают.', 'error'); } try { const res = await fetch('/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldPassword, newPassword }) }); const result = await res.json(); showModalMessage(modalId, result.message, result.success ? 'success' : 'error'); if (result.success) setTimeout(() => document.querySelector(`[data-modal-id="${modalId}"]`).click(), 2000); } catch (err) { showModalMessage(modalId, 'Ошибка сети. Попробуйте снова.', 'error'); } });
+    document.querySelector('[data-form-id="change-email-form"]').addEventListener('submit', async (e) => { e.preventDefault(); const form = e.target; const newEmail = form.querySelector('#newEmail').value; const password = form.querySelector('#currentPasswordForEmail').value; const modalId = 'change-email-modal'; try { const res = await fetch('/change-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newEmail, password }) }); const result = await res.json(); showModalMessage(modalId, result.message, result.success ? 'success' : 'error'); if (result.success) setTimeout(() => document.querySelector(`[data-modal-id="${modalId}"]`).click(), 3000); } catch (err) { showModalMessage(modalId, 'Ошибка сети. Попробуйте снова.', 'error'); } });
+    document.querySelector('[data-form-id="delete-account-form"]').addEventListener('submit', async (e) => { e.preventDefault(); const form = e.target; const password = form.querySelector('#passwordForDelete').value; const modalId = 'delete-account-modal'; try { const res = await fetch('/delete-account', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) }); const result = await res.json(); if (result.success) { alert(result.message); window.location.href = '/login?success=account_deleted'; } else { showModalMessage(modalId, result.message, 'error'); } } catch (err) { showModalMessage(modalId, 'Ошибка сети. Попробуйте снова.', 'error'); } });
+</script>
+
+</body>
+</html>

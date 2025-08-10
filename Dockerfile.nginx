@@ -1,0 +1,10 @@
+# Dockerfile.nginx
+
+# Используем официальный образ Nginx
+FROM nginx:stable-alpine
+
+# Удаляем стандартную конфигурацию
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Копируем нашу конфигурацию для wogent.com
+COPY nginx.conf /etc/nginx/conf.d/

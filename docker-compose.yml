@@ -1,0 +1,47 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whatsapp-app-nodejs
+    restart: always
+    env_file: .env
+    volumes:
+      # Ссылаемся на наш новый, правильный том
+      - whatsapp-project-data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    expose:
+      - "3000"
+
+  analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile.analyzer
+    container_name: whatsapp-app-analyzer
+    restart: always
+    volumes:
+      # Подключаем тот же самый том
+      - whatsapp-project-data:/shared_data
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    container_name: whatsapp-app-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - app
+
+# Объявляем том и ЯВНО задаем его имя.
+# Docker-compose больше не будет добавлять префикс.
+volumes:
+  whatsapp-project-data:
+    name: whatsapp-project-data

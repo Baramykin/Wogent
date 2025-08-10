@@ -1,0 +1,13 @@
+# Локальные зависимости
+node_modules
+
+# Локальные данные сессий и БД
+.wwebjs_auth
+db.sqlite
+sessions.db
+*.txt
+
+# Файлы Docker и npm
+Dockerfile
+.dockerignore
+npm-debug.log

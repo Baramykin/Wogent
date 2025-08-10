@@ -1,0 +1,22 @@
+# Dockerfile.analyzer
+
+# Используем официальный образ Python
+FROM python:3.9-slim
+
+# Устанавливаем рабочую директорию
+WORKDIR /analyzer
+
+# Устанавливаем системные зависимости, которые могут понадобиться некоторым провайдерам g4f
+RUN apt-get update && apt-get install -y \
+    curl \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем g4f и его зависимости. httpx[socks] нужен для некоторых провайдеров.
+RUN pip install --no-cache-dir g4f "httpx[socks]"
+
+# Копируем наш скрипт в контейнер
+COPY analyze_contacts.py .
+
+# Оставляем контейнер работать в фоновом режиме
+CMD ["tail", "-f", "/dev/null"]
